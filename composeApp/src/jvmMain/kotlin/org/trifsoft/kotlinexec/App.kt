@@ -36,8 +36,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import java.io.FileWriter
+import java.util.Scanner
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -48,14 +51,29 @@ fun App() {
     val sideSpacing = with(LocalDensity.current) { spacing.toPx() }
     val horizontalScrollState = rememberScrollState()
     val verticalScrollState = rememberScrollState()
-    var output by remember { mutableStateOf<Output>(Output.Empty) }
-    var text by remember {
-        mutableStateOf(
-            TextFieldValue()
-        )
-    }
+    var outputText by remember { mutableStateOf("") }
+    var runningState by remember { mutableStateOf<RunningState?>(null) }
+    var process by remember { mutableStateOf<Process?>(null) }
+    var text by remember { mutableStateOf(TextFieldValue()) }
     var cursorPos: (Int)-> Rect by remember { mutableStateOf({ Rect(0f,0f,0f,0f) }) }
     var textSize by remember { mutableStateOf<IntSize?>(null) }
+    LaunchedEffect(process?.pid()) {
+        launch(Dispatchers.Default) {
+            process?.let { pc ->
+                pc.onExit().thenAccept {
+                    runningState = if(it.exitValue() == 0) {
+                        RunningState.Ended.OK
+                    } else {
+                        RunningState.Ended.Error(pc.exitValue())
+                    }
+                }
+                val scanner = Scanner(pc.inputStream)
+                while(scanner.hasNext()) {
+                    outputText += scanner.next()
+                }
+            }
+        }
+    }
     LaunchedEffect(text.selection) {
         val cursorPosition = cursorPos(text.selection.end)
         val leftRelativePosition = cursorPosition.left - horizontalScrollState.value
@@ -120,13 +138,19 @@ fun App() {
                     .padding(textPadding)
             ) {
                 Text(
-                    text = output.text,
-                    color = output.color,
+                    text = outputText,
                     textAlign = TextAlign.Justify,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                 )
+                runningState?.let { state ->
+                    Text(
+                        text = state.text,
+                        color = state.textColor,
+                        textAlign = TextAlign.End
+                    )
+                }
                 Button (
                     shape = RoundedCornerShape(spacing),
                     colors = ButtonDefaults.buttonColors(
@@ -137,29 +161,11 @@ fun App() {
                         val writeStream = FileWriter("output.kts")
                         writeStream.write(text.text)
                         writeStream.close()
-                        output = Output.Running
-                        val process = ProcessBuilder("kotlinc", "-script", "output.kts")
+                        outputText = ""
+                        process = ProcessBuilder("kotlinc", "-script", "output.kts")
+                            .redirectErrorStream(true)
                             .start()
-                        val future = process.onExit()
-                        future.thenAccept { pc ->
-                            if(pc.exitValue() == 0) {
-                                output = Output.Result.OK(
-                                    pc.inputStream
-                                        .bufferedReader()
-                                        .readLines()
-                                        .reduceOrNull { s1,s2 -> s1+"\n"+s2 } ?: ""
-                                )
-                            }
-                            else {
-                                output = Output.Result.Error(
-                                    pc.errorStream
-                                        .bufferedReader()
-                                        .readLines()
-                                        .reduceOrNull { s1,s2 -> s1+"\n"+s2 } ?: "",
-                                    pc.exitValue()
-                                )
-                            }
-                        }
+                        runningState = RunningState.Running
                     }
                 ) {
                     Text("Run")
