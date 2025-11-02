@@ -67,9 +67,11 @@ fun App() {
                         RunningState.Ended.Error(pc.exitValue())
                     }
                 }
-                val scanner = Scanner(pc.inputStream)
-                while(scanner.hasNext()) {
-                    outputText += scanner.next()
+                val reader = pc.inputStream.reader()
+                var c = reader.read()
+                while(c != -1) {
+                    outputText += c.toChar()
+                    c = reader.read()
                 }
             }
         }
