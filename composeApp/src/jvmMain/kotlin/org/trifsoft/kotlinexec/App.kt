@@ -2,6 +2,7 @@ package org.trifsoft.kotlinexec
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,7 +19,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,6 +33,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Preview
 fun App() {
     val textPadding = PaddingValues(10.dp)
+    val sideSpacing = with(LocalDensity.current) { 10.dp.toPx() }
     val horizontalScrollState = rememberScrollState()
     var text by remember {
         mutableStateOf(
@@ -36,6 +41,21 @@ fun App() {
                 "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata"
             )
         )
+    }
+    var cursorPos: (Int)-> Rect by remember { mutableStateOf({ Rect(0f,0f,0f,0f) }) }
+    var width by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(text.selection) {
+        val cursorPosition = cursorPos(text.selection.end)
+        val leftRelativePosition = cursorPosition.left - horizontalScrollState.value
+        val rightRelativePosition = cursorPosition.right - horizontalScrollState.value
+        if(width != -1 && (rightRelativePosition > width - sideSpacing || leftRelativePosition < sideSpacing)) {
+            if(leftRelativePosition < sideSpacing) {
+                horizontalScrollState.scrollBy(leftRelativePosition - sideSpacing)
+            }
+            else {
+                horizontalScrollState.scrollBy(rightRelativePosition + sideSpacing - width)
+            }
+        }
     }
     MaterialTheme {
         Row(
@@ -47,11 +67,15 @@ fun App() {
                 modifier = Modifier
                     .weight(1f)
                     .padding(textPadding)
+                    .onSizeChanged { width = it.width }
                     .horizontalScroll(horizontalScrollState)
             ) {
                 BasicTextField(
                     value = text,
                     onValueChange = { text = it },
+                    onTextLayout = { textLayout ->
+                        cursorPos = { textLayout.getCursorRect(it) }
+                    },
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
                 )
