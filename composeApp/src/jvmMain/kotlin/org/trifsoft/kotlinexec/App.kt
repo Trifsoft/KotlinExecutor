@@ -127,12 +127,10 @@ fun App() {
                 val errorReader = pc.errorStream.reader()
                 val errorText = buildAnnotatedString {
                     withStyle(SpanStyle(color = Color.Red)) {
-                        withLink(LinkAnnotation.Clickable("Click") { }) {
+                        c = errorReader.read()
+                        while(c != -1) {
+                            append(c.toChar())
                             c = errorReader.read()
-                            while(c != -1) {
-                                append(c.toChar())
-                                c = errorReader.read()
-                            }
                         }
                     }
                 }
