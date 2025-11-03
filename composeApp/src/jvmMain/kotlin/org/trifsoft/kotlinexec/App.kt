@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -31,20 +32,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import java.io.FileWriter
 
 val keywords = listOf(
@@ -95,19 +93,26 @@ fun annotatedKeywordsFromText(text: String): AnnotatedString = buildAnnotatedStr
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-@Preview
 fun App() {
     val spacing = 10.dp
     val textPadding = PaddingValues(spacing)
     val sideSpacing = with(LocalDensity.current) { spacing.toPx() }
+
+    val textStyle = TextStyle(
+        fontSize = 24.sp,
+        lineHeight = 30.sp
+    )
+
     val horizontalScrollState = rememberScrollState()
     val verticalScrollState = rememberScrollState()
+
     var outputText by remember { mutableStateOf(AnnotatedString("")) }
     var runningState by remember { mutableStateOf<RunningState?>(null) }
     var process by remember { mutableStateOf<Process?>(null) }
     var text by remember { mutableStateOf(TextFieldValue()) }
     var cursorPos: (Int)-> Rect by remember { mutableStateOf({ Rect(0f,0f,0f,0f) }) }
     var textSize by remember { mutableStateOf<IntSize?>(null) }
+
     LaunchedEffect(process?.pid()) {
         launch(Dispatchers.Default) {
             process?.let { pc ->
@@ -177,10 +182,8 @@ fun App() {
                 BasicTextField(
                     value = text,
                     onValueChange = { text = it },
-                    textStyle = TextStyle(
-                        color = Color.Transparent,
-                        lineHeight = 30.sp,
-                        fontSize = 24.sp
+                    textStyle = textStyle.copy(
+                        color = Color.Transparent
                     ),
                     onTextLayout = { textLayout ->
                         cursorPos = { textLayout.getCursorRect(it) }
@@ -188,14 +191,16 @@ fun App() {
                     decorationBox = { innerTextField ->
                         Text(
                             text = annotatedKeywordsFromText(text.text),
-                            style = TextStyle(
-                                lineHeight = 30.sp,
-                                fontSize = 24.sp
-                            )
+                            style = textStyle
                         )
                         innerTextField() // overlays the actual cursor & input
                     },
                     modifier = Modifier
+                        .widthIn(
+                            with(LocalDensity.current) {
+                                textSize?.width?.toDp() ?: 0.dp
+                            }
+                        )
                         .verticalScroll(verticalScrollState)
                 )
             }
@@ -215,9 +220,11 @@ fun App() {
                 Text(
                     text = outputText,
                     textAlign = TextAlign.Justify,
+                    style = textStyle,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                 )
                 runningState?.let { state ->
                     Text(
