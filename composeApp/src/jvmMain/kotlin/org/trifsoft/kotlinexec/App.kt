@@ -40,7 +40,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import java.io.FileWriter
-import java.util.Scanner
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -153,24 +152,40 @@ fun App() {
                         textAlign = TextAlign.End
                     )
                 }
-                Button (
-                    shape = RoundedCornerShape(spacing),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF009900),
-                        contentColor = Color.White
-                    ),
-                    onClick = {
-                        val writeStream = FileWriter("output.kts")
-                        writeStream.write(text.text)
-                        writeStream.close()
-                        outputText = ""
-                        process = ProcessBuilder("kotlinc", "-script", "output.kts")
-                            .redirectErrorStream(true)
-                            .start()
-                        runningState = RunningState.Running
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                    if(runningState == RunningState.Running) {
+                        Button(
+                            shape = RoundedCornerShape(spacing),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Red,
+                                contentColor = Color.White
+                            ),
+                            onClick = {
+                                process?.destroy()
+                            }
+                        ) {
+                            Text("Kill process")
+                        }
                     }
-                ) {
-                    Text("Run")
+                    Button (
+                        shape = RoundedCornerShape(spacing),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF008000),
+                            contentColor = Color.White
+                        ),
+                        onClick = {
+                            val writeStream = FileWriter("output.kts")
+                            writeStream.write(text.text)
+                            writeStream.close()
+                            outputText = ""
+                            process = ProcessBuilder("kotlinc", "-script", "output.kts")
+                                .redirectErrorStream(true)
+                                .start()
+                            runningState = RunningState.Running
+                        }
+                    ) {
+                        Text("Run")
+                    }
                 }
             }
         }
