@@ -123,23 +123,26 @@ fun App() {
                         RunningState.Ended.Error(pc.exitValue())
                     }
                 }
-                val reader = pc.inputStream.reader()
-                var c = reader.read()
-                while(c != -1) {
-                    outputText += AnnotatedString(c.toChar().toString())
-                    c = reader.read()
-                }
-                val errorReader = pc.errorStream.reader()
-                val errorText = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Color.Red)) {
-                        c = errorReader.read()
-                        while(c != -1) {
-                            append(c.toChar())
+                try {
+
+                    val reader = pc.inputStream.reader()
+                    var c = reader.read()
+                    while(c != -1) {
+                        outputText += AnnotatedString(c.toChar().toString())
+                        c = reader.read()
+                    }
+                    val errorReader = pc.errorStream.reader()
+                    val errorText = buildAnnotatedString {
+                        withStyle(SpanStyle(color = Color.Red)) {
                             c = errorReader.read()
+                            while(c != -1) {
+                                append(c.toChar())
+                                c = errorReader.read()
+                            }
                         }
                     }
-                }
-                outputText += errorText
+                    outputText += errorText
+                } catch (_: Exception) {}
             }
         }
     }
@@ -255,6 +258,9 @@ fun App() {
                             contentColor = Color.White
                         ),
                         onClick = {
+                            if(runningState == RunningState.Running) {
+                                process?.destroy()
+                            }
                             val writeStream = FileWriter("output.kts")
                             writeStream.write(text.text)
                             writeStream.close()
