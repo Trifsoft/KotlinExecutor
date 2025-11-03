@@ -47,6 +47,52 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import java.io.FileWriter
 
+val keywords = listOf(
+    "val", "var", "by", "null", "fun", "if", "else", "for", "while", "import"
+)
+val ignoreCases = listOf(
+    " ", "\n", "\t",
+    "(", ")", "{", "}", "[", "]",
+    "=", "+", "-", "/", "*", "%",
+    "<", ">", "==", "!=", "<=", ">=",
+    ".", "..", "..<",
+    ","
+)
+
+fun AnnotatedString.Builder.addWord(word: String) {
+    withStyle(
+        if(word in keywords) {
+            SpanStyle(color = Color(0xFFFF6060))
+        }
+        else if(word.toIntOrNull() != null) {
+            SpanStyle(color = Color(0xFF438089))
+        }
+        else {
+            SpanStyle()
+        }
+    ) {
+        append(word)
+    }
+}
+
+fun AnnotatedString.Builder.addText(text: String, delimiterIndex: Int) {
+    if(delimiterIndex >= ignoreCases.size) {
+        addWord(text)
+        return
+    }
+    val delimiter = ignoreCases[delimiterIndex]
+    text.split(delimiter).forEachIndexed { index, word ->
+        if(index > 0) {
+            append(delimiter)
+        }
+        addText(word, delimiterIndex+1)
+    }
+}
+
+fun annotatedKeywordsFromText(text: String): AnnotatedString = buildAnnotatedString {
+    addText(text, 0)
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 @Preview
@@ -134,11 +180,22 @@ fun App() {
                     value = text,
                     onValueChange = { text = it },
                     textStyle = TextStyle(
+                        color = Color.Transparent,
                         lineHeight = 30.sp,
                         fontSize = 24.sp
                     ),
                     onTextLayout = { textLayout ->
                         cursorPos = { textLayout.getCursorRect(it) }
+                    },
+                    decorationBox = { innerTextField ->
+                        Text(
+                            text = annotatedKeywordsFromText(text.text),
+                            style = TextStyle(
+                                lineHeight = 30.sp,
+                                fontSize = 24.sp
+                            )
+                        )
+                        innerTextField() // overlays the actual cursor & input
                     },
                     modifier = Modifier
                         .verticalScroll(verticalScrollState)
