@@ -30,9 +30,15 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,7 +56,7 @@ fun App() {
     val sideSpacing = with(LocalDensity.current) { spacing.toPx() }
     val horizontalScrollState = rememberScrollState()
     val verticalScrollState = rememberScrollState()
-    var outputText by remember { mutableStateOf("") }
+    var outputText by remember { mutableStateOf(AnnotatedString("")) }
     var runningState by remember { mutableStateOf<RunningState?>(null) }
     var process by remember { mutableStateOf<Process?>(null) }
     var text by remember { mutableStateOf(TextFieldValue()) }
@@ -69,9 +75,22 @@ fun App() {
                 val reader = pc.inputStream.reader()
                 var c = reader.read()
                 while(c != -1) {
-                    outputText += c.toChar()
+                    outputText += AnnotatedString(c.toChar().toString())
                     c = reader.read()
                 }
+                val errorReader = pc.errorStream.reader()
+                val errorText = buildAnnotatedString {
+                    withStyle(SpanStyle(color = Color.Red)) {
+                        withLink(LinkAnnotation.Clickable("Click") { }) {
+                            c = errorReader.read()
+                            while(c != -1) {
+                                append(c.toChar())
+                                c = errorReader.read()
+                            }
+                        }
+                    }
+                }
+                outputText += errorText
             }
         }
     }
@@ -177,9 +196,8 @@ fun App() {
                             val writeStream = FileWriter("output.kts")
                             writeStream.write(text.text)
                             writeStream.close()
-                            outputText = ""
+                            outputText = AnnotatedString("")
                             process = ProcessBuilder("kotlinc", "-script", "output.kts")
-                                .redirectErrorStream(true)
                                 .start()
                             runningState = RunningState.Running
                         }
